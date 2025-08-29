@@ -225,7 +225,7 @@
   </div>
   <table>
     <thead>
-      <tr><th>Месяц</th><th>Мили</th><th>Итого за год</th><th>Статус</th><th>Следующий</th><th>До цели</th></tr>
+      <tr><th>Списывается</th><th>Мили</th><th>Итого за год</th><th>Статус</th><th>Следующий</th><th>До цели</th><th>Лимит</th></tr>
     </thead>
     <tbody id="sp_rows"></tbody>
   </table>
@@ -456,16 +456,16 @@
 
   /* ====== Прогресс статуса ====== */
   const SP_LEVELS=[
-    {name:'D1',miles:0,mult:3.00},
-    {name:'D2',miles:50000,mult:3.50},
-    {name:'D3',miles:330000,mult:4.00},
+    {name:'D1',miles:50000,mult:3.00},
+    {name:'D2',miles:100000,mult:3.50},
+    {name:'D3',miles:250000,mult:4.00},
     {name:'D4',miles:500000,mult:4.50},
     {name:'D5',miles:1000000,mult:5.00},
     {name:'RD1',miles:2000000,mult:6.00},
-    {name:'RD2',miles:3500000,mult:6.25},
-    {name:'RD3',miles:5500000,mult:6.50},
-    {name:'RD4',miles:8000000,mult:6.75},
-    {name:'RD5',miles:11000000,mult:7.00}
+    {name:'RD2',miles:4000000,mult:6.25},
+    {name:'RD3',miles:7000000,mult:6.50},
+    {name:'RD4',miles:10000000,mult:6.75},
+    {name:'RD5',miles:15000000,mult:7.00}
   ];
   const SP_DATA=JSON.parse(localStorage.getItem('sp_data')||'{}');
   const SP_MONTHS=[];
@@ -489,15 +489,23 @@
     const body=document.getElementById('sp_rows');
     const from=no(document.getElementById('sp_from').value);
     const to=no(document.getElementById('sp_to').value);
+    const limit=+document.getElementById('sp_limit').value;
+    const rakePct=+document.getElementById('rakePct').value;
+    const kconst=+document.getElementById('kconst').value;
+    const multSel=STATUS[document.getElementById('status').value].mult;
+    const mpg=milesPerGame(limit,rakePct,kconst,multSel);
     let rows="";
     for(let i=SP_OFFSET;i<Math.min(SP_OFFSET+12,SP_MONTHS.length);i++){
       const m=SP_MONTHS[i];
       const val=no(SP_DATA[m]);
+      const expired = i>=12 ? no(SP_DATA[SP_MONTHS[i-12]]) : 0;
       let rolling=0;
       for(let j=Math.max(0,i-11); j<=i; j++){ rolling+=no(SP_DATA[SP_MONTHS[j]]); }
       const total=from+rolling;
       const {cur,next}=sp_status(total);
-      rows+=`<tr><td>${fmtMonth(m)}</td><td><input type="number" data-month="${m}" value="${val}"></td><td class="mono">${fmt(total)}</td><td>${cur?cur.name:''}</td><td>${next?next.name:'—'}</td><td class="mono">${fmt(Math.max(0,to-total))}</td></tr>`;
+      const need=Math.max(0,to-total);
+      const games=mpg>0?Math.ceil(need/mpg):0;
+      rows+=`<tr><td class="mono">${fmt(expired)}</td><td><input type="number" data-month="${m}" value="${val}" title="${fmtMonth(m)}"></td><td class="mono">${fmt(total)}</td><td>${cur?cur.name:''}</td><td>${next?next.name:'—'}</td><td class="mono">${fmt(need)}</td><td class="mono">${fmt(games)}</td></tr>`;
     }
     body.innerHTML=rows;
     body.querySelectorAll('input').forEach(inp=>inp.addEventListener('change',sp_update));
@@ -519,8 +527,9 @@
     const months=Math.max(1,no(document.getElementById('sp_months').value));
     const rakePct=+document.getElementById('rakePct').value;
     const kconst=+document.getElementById('kconst').value;
-    const now=new Date().toISOString().slice(0,7);
-    const idx=SP_MONTHS.indexOf(now);
+    const multSel=STATUS[document.getElementById('status').value].mult;
+    const nowStr=new Date().toISOString().slice(0,7);
+    const idx=SP_MONTHS.indexOf(nowStr);
     let rolling=0;
     for(let i=Math.max(0,idx-11); i<=idx; i++){ rolling+=no(SP_DATA[SP_MONTHS[i]]); }
     const total=from+rolling;
@@ -529,8 +538,13 @@
       document.getElementById('sp_needInfo').textContent='Максимальный статус достигнут.';
       return;
     }
-    const needMiles=next.miles-total;
-    const mpg=milesPerGame(limit,rakePct,kconst,cur.mult);
+    let expire=0;
+    for(let t=1;t<=months;t++){
+      const dropIdx=idx-12+t;
+      if(dropIdx>=0 && dropIdx<SP_MONTHS.length) expire+=no(SP_DATA[SP_MONTHS[dropIdx]]);
+    }
+    const needMiles=next.miles-total+expire;
+    const mpg=milesPerGame(limit,rakePct,kconst,multSel);
     const rakePerGame=limit*(rakePct/100);
     const games=mpg>0?Math.ceil(needMiles/mpg):0;
     const rake=games*rakePerGame;
