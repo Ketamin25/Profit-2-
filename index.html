@@ -52,14 +52,6 @@
     </select>
   </label>
 
-  <label>Лимит в шаблонах
-    <select id="limit">
-      <option value="25">€25</option>
-      <option value="50">€50</option>
-      <option value="100" selected>€100</option>
-    </select>
-  </label>
-
   <label>Рейк
     <select id="rakePct">
       <option value="7" selected>7%</option>
@@ -87,6 +79,15 @@
 
   <div class="card" id="tplCard">
     <h3>Шаблонные бонусы по КАЖДОМУ статусу (игры на выбранном лимите)</h3>
+    <div class="row" style="justify-content:flex-end;margin:0">
+      <label>Лимит в шаблонах
+        <select id="limit">
+          <option value="25">€25</option>
+          <option value="50">€50</option>
+          <option value="100" selected>€100</option>
+        </select>
+      </label>
+    </div>
     <div class="muted" id="bonusNote"></div>
     <div class="scroll">
       <table>
@@ -127,30 +128,18 @@
       <label>x1k %
         <input id="ne_p1000" type="number" value="100" min="0" max="100" step="0.1" />
       </label>
-      <label>% TOP-джекпота в пуле
-        <input id="ne_ptop" type="number" value="0" min="0" max="100" step="0.1" />
-      </label>
       <label>RakeBack %
         <input id="ne_rb" type="number" value="0" min="0" max="100" step="0.1" />
       </label>
     </div>
 
     <div class="kpis">
-      <div class="kpi"><b>EV/игру</b><span id="ne_evGame">—</span></div>
-      <div class="kpi"><b>PoolEV (только EV)</b><span id="ne_poolEv">—</span></div>
-      <div class="kpi"><b>Rake (∑ B · Rake%)</b><span id="ne_rakeTotal">—</span></div>
-      <div class="kpi"><b>Rakeback (Rake · RB%)</b><span id="ne_rbTotal">—</span></div>
-      <div class="kpi"><b>Суммарный профит = EV + RB</b><span id="ne_sumProfit">—</span></div>
+      <div class="kpi"><b>Profit/игру</b><span id="ne_profitGame">—</span></div>
+      <div class="kpi"><b>PoolEV</b><span id="ne_poolEv">—</span></div>
+      <div class="kpi"><b>Rake</b><span id="ne_rakeTotal">—</span></div>
+      <div class="kpi"><b>RB</b><span id="ne_rbTotal">—</span></div>
+      <div class="kpi"><b>Profit</b><span id="ne_sumProfit">—</span></div>
     </div>
-
-    <details>
-      <summary>Формула и параметры (развернуть)</summary>
-      <div class="muted" id="ne_formula_text"></div>
-      <div class="gridNitro">
-        <div class="card" id="ne_diag_avgs"></div>
-        <div class="card" id="ne_diag_weights"></div>
-      </div>
-    </details>
   </div>
 
   <div class="card half" id="recordCard">
@@ -190,7 +179,7 @@
 
     <h4 style="margin-top:12px">История по месяцам</h4>
     <table>
-      <thead><tr><th>Месяц</th><th>Игры</th><th>Мили</th><th>Profit €</th></tr></thead>
+      <thead><tr><th>Месяц</th><th>Игры</th><th>Мили</th><th>Profit €</th><th></th></tr></thead>
       <tbody id="nr_histRows"></tbody>
       <tfoot id="nr_hist_total"></tfoot>
     </table>
@@ -222,6 +211,16 @@
     <label>CONST
       <input id="kconst" type="number" value="4" step="0.01">
     </label>
+  </div>
+</details>
+
+<!-- NitroEV формулы -->
+<details>
+  <summary>NitroEV — формулы и параметры</summary>
+  <div class="muted" id="ne_formula_text"></div>
+  <div class="gridNitro">
+    <div class="card" id="ne_diag_avgs"></div>
+    <div class="card" id="ne_diag_weights"></div>
   </div>
 </details>
 
@@ -350,6 +349,24 @@
     nr_render();
   }
 
+  function nr_edit(m){
+    document.getElementById('nr_month').value = m;
+    nr_changeMonth();
+  }
+
+  function nr_delete(m){
+    if(!confirm(`Удалить данные за ${m}?`)) return;
+    delete NR_DATA[m];
+    localStorage.setItem('nr_data',JSON.stringify(NR_DATA));
+    if(NR_MONTH===m){
+      NR_MONTH=new Date().toISOString().slice(0,7);
+      NR_CURRENT=NR_DATA[NR_MONTH]||{};
+      document.getElementById('nr_month').value=NR_MONTH;
+      nr_render();
+    }
+    nr_renderHistory();
+  }
+
   function nr_renderHistory(){
     const body=document.getElementById('nr_histRows');
     const foot=document.getElementById('nr_hist_total');
@@ -358,10 +375,10 @@
       let g=0,mi=0,pr=0; const obj=NR_DATA[m];
       Object.values(obj).forEach(r=>{g+=r.games;mi+=r.miles;pr+=r.profit;});
       sg+=g; sm+=mi; sp+=pr;
-      rows+=`<tr><td>${m}</td><td class="mono">${fmt(g)}</td><td class="mono">${fmt(mi)}</td><td class="mono">${fmt(pr,2)}</td></tr>`;
+      rows+=`<tr><td>${m}</td><td class="mono">${fmt(g)}</td><td class="mono">${fmt(mi)}</td><td class="mono">${fmt(pr,2)}</td><td><button onclick="nr_edit('${m}')">✎</button> <button onclick="nr_delete('${m}')">✕</button></td></tr>`;
     });
     body.innerHTML=rows;
-    foot.innerHTML=`<tr class="bold"><td>Итого</td><td class="mono">${fmt(sg)}</td><td class="mono">${fmt(sm)}</td><td class="mono">${fmt(sp,2)}</td></tr>`;
+    foot.innerHTML=`<tr class="bold"><td>Итого</td><td class="mono">${fmt(sg)}</td><td class="mono">${fmt(sm)}</td><td class="mono">${fmt(sp,2)}</td><td></td></tr>`;
   }
 
   document.getElementById('nr_add').addEventListener('click',nr_add);
@@ -408,7 +425,6 @@
   };
 
   function ne_payBI(m, type){ return (type==='icm') ? [0.8*m,0.12*m,0.08*m] : [m,0,0]; }
-  function ne_topIndex(){ return 0; }
   function ne_euro(n){ return n.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
   function calculateNitro(){
@@ -416,18 +432,16 @@
     const CE   = +document.getElementById('ne_ce').value;
     const N    = +document.getElementById('ne_N').value;
     const p100 = Math.max(0, Math.min(100, +document.getElementById('ne_p1000').value));
-    const pTop = Math.max(0, Math.min(100, +document.getElementById('ne_ptop').value));
     const rb   = Math.max(0, Math.min(100, +document.getElementById('ne_rb').value));
     const rakePct = +document.getElementById('rakePct').value / 100;
     const S = 300;
 
     const base = NE_PROBS[B].map(r=>({...r}));
     for(const r of base){ if(r.m===1000) r.p = r.p * (p100/100); }
-    base[ne_topIndex()].p = base[ne_topIndex()].p * (pTop/100);
 
     const sumP = base.reduce((s,r)=>s+r.p,0);
     if(sumP<=0){
-      document.getElementById('ne_evGame').textContent='—';
+      document.getElementById('ne_profitGame').textContent='—';
       document.getElementById('ne_poolEv').textContent='—';
       document.getElementById('ne_rakeTotal').textContent='—';
       document.getElementById('ne_rbTotal').textContent='—';
@@ -458,8 +472,9 @@
     const rakeTotal   = rakePerGame * N;
     const rbTotal     = rakeTotal * (rb/100);
     const sumProfit   = PoolEV + rbTotal;
+    const profitGame  = N>0 ? sumProfit / N : 0;
 
-    document.getElementById('ne_evGame').textContent    = `${ne_euro(EV_game)} €`;
+    document.getElementById('ne_profitGame').textContent = `${ne_euro(profitGame)} €`;
     document.getElementById('ne_poolEv').textContent    = `${ne_euro(PoolEV)} €`;
     document.getElementById('ne_rakeTotal').textContent = `${ne_euro(rakeTotal)} €`;
     document.getElementById('ne_rbTotal').textContent   = `${ne_euro(rbTotal)} €`;
@@ -470,9 +485,9 @@
       `Деньги: EV€/игру = EV_BI·B, PoolEV = N·EV€/игру. <br>`+
       `Rake считается отдельно: <b>rake_per_game = B·${(rakePct*100).toFixed(0)}%</b>, `+
       `<b>Rake_total = rake_per_game·N</b>, `+
-      `<b>Rakeback_total = Rake_total·(RB%)</b>. Итог: <b>Суммарный профит = PoolEV + Rakeback_total</b>.<br>`+
+      `<b>RB_total = Rake_total·(RB%)</b>. Итог: <b>Profit = PoolEV + RB_total</b>, Profit/игру = Profit/N.<br>`+
       `Текущие: Win%=${(Win*100).toFixed(2)}%, Coef(2/3)=${(W23*100).toFixed(2)}%, B=${B}€, CE=${CE}, `+
-      `x1000=${p100.toFixed(2)}%, TOP=${pTop.toFixed(2)}%, RB%=${rb.toFixed(1)}%.`;
+      `x1000=${p100.toFixed(2)}%, RB%=${rb.toFixed(1)}%.`;
 
     document.getElementById('ne_diag_avgs').innerHTML =
       `<b>Средние выплаты по пулу (в BI)</b><br>
@@ -485,7 +500,7 @@
   }
 
   // Слушатели для Nitro и общих контролов
-  ['ne_ce','ne_N','ne_p1000','ne_ptop','ne_rb'].forEach(id=>{
+  ['ne_ce','ne_N','ne_p1000','ne_rb'].forEach(id=>{
     const el=document.getElementById(id);
     el.addEventListener('input',calculateNitro);
     el.addEventListener('change',calculateNitro);
