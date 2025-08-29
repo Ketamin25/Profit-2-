@@ -31,6 +31,7 @@
   .kpi b{display:block;font-size:13px;color:#555;margin-bottom:4px}
   .kpi span{font-size:18px;font-weight:700}
   .gridNitro{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:10px}
+  .link{background:none;border:none;color:#1d4ed8;cursor:pointer;padding:0}
 </style>
 </head>
 <body>
@@ -148,6 +149,7 @@
       <label>Месяц
         <input type="month" id="nr_month">
       </label>
+      <button id="nr_clear_month" type="button">✕</button>
       <button id="nr_prev" type="button">◀</button>
       <button id="nr_next" type="button">▶</button>
       <label>Лимит
@@ -160,6 +162,7 @@
           <option value="100">€100</option>
         </select>
       </label>
+      <button id="nr_clear_limit" type="button">✕</button>
       <label>Турниров
         <input id="nr_games" type="number">
       </label>
@@ -300,11 +303,14 @@
   ['status','limit','rakePct','esPlus','kconst','eurX','milesX']
     .forEach(id=>{ const el=document.getElementById(id); if(el){ el.addEventListener('input',recalc); el.addEventListener('change',recalc);} });
 
-  /* ====== Nitro Record ====== */
+/* ====== Nitro Record ====== */
+  const MONTH_NAMES=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
   let NR_DATA = JSON.parse(localStorage.getItem('nr_data')||'{}');
   let NR_MONTH = new Date().toISOString().slice(0,7);
   let NR_CURRENT = NR_DATA[NR_MONTH] || {};
   document.getElementById('nr_month').value = NR_MONTH;
+
+  function fmtMonth(m){ const [y,mo]=m.split('-'); return MONTH_NAMES[+mo-1]+" "+y.slice(2); }
 
   function nr_render(){
     const limits=[2,5,10,25,50,100];
@@ -345,6 +351,20 @@
     nr_renderHistory();
   }
 
+  function nr_clearLimit(){
+    const limit=document.getElementById('nr_limit').value;
+    delete NR_CURRENT[limit];
+    nr_render();
+  }
+
+  function nr_clearMonth(){
+    delete NR_DATA[NR_MONTH];
+    NR_CURRENT={};
+    localStorage.setItem('nr_data',JSON.stringify(NR_DATA));
+    nr_render();
+    nr_renderHistory();
+  }
+
   function nr_changeMonth(){
     NR_MONTH=document.getElementById('nr_month').value;
     NR_CURRENT=NR_DATA[NR_MONTH]||{};
@@ -368,10 +388,16 @@
       let g=0,mi=0,pr=0; const obj=NR_DATA[m];
       Object.values(obj).forEach(r=>{g+=r.games;mi+=r.miles;pr+=r.profit;});
       sg+=g; sm+=mi; sp+=pr;
-      rows+=`<tr><td>${m}</td><td class="mono">${fmt(g)}</td><td class="mono">${fmt(mi)}</td><td class="mono">${fmt(pr,2)}</td></tr>`;
+      rows+=`<tr><td><button type="button" data-month="${m}" class="link">${fmtMonth(m)}</button></td><td class="mono">${fmt(g)}</td><td class="mono">${fmt(mi)}</td><td class="mono">${fmt(pr,2)}</td></tr>`;
     });
     body.innerHTML=rows;
     foot.innerHTML=`<tr class="bold"><td>Итого</td><td class="mono">${fmt(sg)}</td><td class="mono">${fmt(sm)}</td><td class="mono">${fmt(sp,2)}</td></tr>`;
+    body.querySelectorAll('button').forEach(btn=>btn.addEventListener('click',()=>{
+      NR_MONTH=btn.dataset.month;
+      document.getElementById('nr_month').value=NR_MONTH;
+      NR_CURRENT=NR_DATA[NR_MONTH]||{};
+      nr_render();
+    }));
   }
 
   document.getElementById('nr_add').addEventListener('click',nr_add);
@@ -379,6 +405,8 @@
   document.getElementById('nr_month').addEventListener('change',nr_changeMonth);
   document.getElementById('nr_prev').addEventListener('click',()=>nr_shiftMonth(-1));
   document.getElementById('nr_next').addEventListener('click',()=>nr_shiftMonth(1));
+  document.getElementById('nr_clear_limit').addEventListener('click',nr_clearLimit);
+  document.getElementById('nr_clear_month').addEventListener('click',nr_clearMonth);
   nr_render();
   nr_renderHistory();
 
