@@ -200,9 +200,19 @@
 <div class="card" id="statusCard">
   <h3>Прогресс статуса</h3>
   <div class="muted">Мили за последние 12 месяцев и планы на будущие.</div>
+  <div class="row">
+    <button id="sp_prev" type="button">◀</button>
+    <button id="sp_next" type="button">▶</button>
+    <label>От
+      <input id="sp_from" type="number" value="330000" step="1000">
+    </label>
+    <label>До
+      <input id="sp_to" type="number" value="2000000" step="1000">
+    </label>
+  </div>
   <table>
     <thead>
-      <tr><th>Месяц</th><th>Мили</th><th>Итого за год</th><th>Статус</th><th>До D4</th><th>До D5</th><th>До RD1</th></tr>
+      <tr><th>Месяц</th><th>Мили</th><th>Итого за год</th><th>Статус</th><th>До D4</th><th>До D5</th><th>До цели</th></tr>
     </thead>
     <tbody id="sp_rows"></tbody>
   </table>
@@ -249,11 +259,11 @@
 <script>
   /* ====== Мили/Шаблоны ====== */
   const STATUS = {
-    D1:{name:'D1',mult:5.00,b1:{miles:10000,eurFR:100}, b2:{miles:5000,eurFR:50}},
-    D2:{name:'D2',mult:5.25,b1:{miles:25000,eurFR:250}, b2:{miles:10000,eurFR:100}},
-    D3:{name:'D3',mult:5.50,b1:{miles:50000,eurFR:500}, b2:{miles:25000,eurFR:250}},
-    D4:{name:'D4',mult:5.75,b1:{miles:100000,eurFR:1000}, b2:{miles:50000,eurFR:500}},
-    D5:{name:'D5',mult:6.00,b1:{miles:150000,eurFR:1500}, b2:{miles:50000,eurFR:500}},
+    D1:{name:'D1',mult:5.00,b1:{miles:10000,eurFR:25},  b2:{miles:10000,eurFR:25}},
+    D2:{name:'D2',mult:5.25,b1:{miles:25000,eurFR:75},  b2:{miles:25000,eurFR:75}},
+    D3:{name:'D3',mult:5.50,b1:{miles:50000,eurFR:125}, b2:{miles:50000,eurFR:125}},
+    D4:{name:'D4',mult:5.75,b1:{miles:100000,eurFR:250},b2:{miles:100000,eurFR:250}},
+    D5:{name:'D5',mult:6.00,b1:{miles:150000,eurFR:375},b2:{miles:150000,eurFR:375}},
     RD1:{name:'RD1',mult:6.00,b1:{miles:200000,eurFR:500},  b2:{miles:100000,eurFR:500}},
     RD2:{name:'RD2',mult:6.25,b1:{miles:350000,eurFR:1000}, b2:{miles:250000,eurFR:1000}},
     RD3:{name:'RD3',mult:6.50,b1:{miles:700000,eurFR:2000}, b2:{miles:500000,eurFR:2000}},
@@ -365,6 +375,8 @@
     NR_DATA[NR_MONTH]=NR_CURRENT;
     localStorage.setItem('nr_data',JSON.stringify(NR_DATA));
     nr_renderHistory();
+    sp_syncFromNR();
+    sp_render();
   }
 
   function nr_clearLimit(){
@@ -379,6 +391,8 @@
     localStorage.setItem('nr_data',JSON.stringify(NR_DATA));
     nr_render();
     nr_renderHistory();
+    sp_syncFromNR();
+    sp_render();
   }
 
   function nr_changeMonth(){
@@ -427,29 +441,42 @@
   nr_renderHistory();
 
   /* ====== Прогресс статуса ====== */
-  const SP_THRESH={D4:430000,D5:930000,RD1:1930000};
+  const SP_THRESH={D4:430000,D5:1000000,RD1:2000000};
   const SP_DATA=JSON.parse(localStorage.getItem('sp_data')||'{}');
   const SP_MONTHS=[];
+  let SP_OFFSET=0;
   (function(){
     const d=new Date();
     d.setMonth(d.getMonth()-11);
     for(let i=0;i<24;i++){ SP_MONTHS.push(d.toISOString().slice(0,7)); d.setMonth(d.getMonth()+1); }
   })();
 
+  function sp_syncFromNR(){
+    Object.keys(NR_DATA).forEach(m=>{
+      let mi=0; Object.values(NR_DATA[m]).forEach(r=>mi+=r.miles);
+      SP_DATA[m]=mi;
+    });
+    localStorage.setItem('sp_data',JSON.stringify(SP_DATA));
+  }
+
   function sp_render(){
     const body=document.getElementById('sp_rows');
-    let rows="", rolling=0;
-    for(let i=0;i<SP_MONTHS.length;i++){
+    const from=no(document.getElementById('sp_from').value);
+    const to=no(document.getElementById('sp_to').value);
+    let rows="";
+    for(let i=SP_OFFSET;i<Math.min(SP_OFFSET+12,SP_MONTHS.length);i++){
       const m=SP_MONTHS[i];
       const val=no(SP_DATA[m]);
-      rolling+=val;
-      if(i>=12) rolling-=no(SP_DATA[SP_MONTHS[i-12]]);
-      const total=rolling;
+      let rolling=0;
+      for(let j=Math.max(0,i-11); j<=i; j++){ rolling+=no(SP_DATA[SP_MONTHS[j]]); }
+      const total=from+rolling;
       const status= total>=SP_THRESH.RD1?'RD1': total>=SP_THRESH.D5?'D5': total>=SP_THRESH.D4?'D4': total>=330000?'D3':'';
-      rows+=`<tr><td>${fmtMonth(m)}</td><td><input type="number" data-month="${m}" value="${val}"></td><td class="mono">${fmt(total)}</td><td>${status}</td><td class="mono">${fmt(Math.max(0,SP_THRESH.D4-total))}</td><td class="mono">${fmt(Math.max(0,SP_THRESH.D5-total))}</td><td class="mono">${fmt(Math.max(0,SP_THRESH.RD1-total))}</td></tr>`;
+      rows+=`<tr><td>${fmtMonth(m)}</td><td><input type="number" data-month="${m}" value="${val}"></td><td class="mono">${fmt(total)}</td><td>${status}</td><td class="mono">${fmt(Math.max(0,SP_THRESH.D4-total))}</td><td class="mono">${fmt(Math.max(0,SP_THRESH.D5-total))}</td><td class="mono">${fmt(Math.max(0,to-total))}</td></tr>`;
     }
     body.innerHTML=rows;
-    body.querySelectorAll('input').forEach(inp=>inp.addEventListener('input',sp_update));
+    body.querySelectorAll('input').forEach(inp=>inp.addEventListener('change',sp_update));
+    document.getElementById('sp_prev').disabled = SP_OFFSET<=0;
+    document.getElementById('sp_next').disabled = SP_OFFSET+12>=SP_MONTHS.length;
   }
 
   function sp_update(e){
@@ -458,6 +485,16 @@
     sp_render();
   }
 
+  function sp_shift(delta){
+    SP_OFFSET=Math.max(0,Math.min(SP_MONTHS.length-12,SP_OFFSET+delta));
+    sp_render();
+  }
+
+  document.getElementById('sp_prev').addEventListener('click',()=>sp_shift(-1));
+  document.getElementById('sp_next').addEventListener('click',()=>sp_shift(1));
+  ['sp_from','sp_to'].forEach(id=>document.getElementById(id).addEventListener('change',sp_render));
+
+  sp_syncFromNR();
   sp_render();
 
   /* ====== Nitro EV (неймспейс ne_*) ====== */
