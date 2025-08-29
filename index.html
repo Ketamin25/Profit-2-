@@ -40,11 +40,11 @@
 <div class="row">
   <label>Статус (для миль/игру)
     <select id="status">
-      <option value="D1">D1 — ×5.00</option>
-      <option value="D2">D2 — ×5.25</option>
-      <option value="D3">D3 — ×5.50</option>
-      <option value="D4">D4 — ×5.75</option>
-      <option value="D5">D5 — ×6.00</option>
+      <option value="D1">D1 — ×3.00</option>
+      <option value="D2">D2 — ×3.50</option>
+      <option value="D3">D3 — ×4.00</option>
+      <option value="D4">D4 — ×4.50</option>
+      <option value="D5">D5 — ×5.00</option>
       <option value="RD1">RD1 — ×6.00</option>
       <option value="RD2">RD2 — ×6.25</option>
       <option value="RD3">RD3 — ×6.50</option>
@@ -209,13 +209,27 @@
     <label>До
       <input id="sp_to" type="number" value="2000000" step="1000">
     </label>
+    <label>Лимит
+      <select id="sp_limit">
+        <option value="2">€2</option>
+        <option value="5" selected>€5</option>
+        <option value="10">€10</option>
+        <option value="25">€25</option>
+        <option value="50">€50</option>
+        <option value="100">€100</option>
+      </select>
+    </label>
+    <label>Месяцев
+      <input id="sp_months" type="number" value="12" min="1">
+    </label>
   </div>
   <table>
     <thead>
-      <tr><th>Месяц</th><th>Мили</th><th>Итого за год</th><th>Статус</th><th>До D4</th><th>До D5</th><th>До цели</th></tr>
+      <tr><th>Месяц</th><th>Мили</th><th>Итого за год</th><th>Статус</th><th>Следующий</th><th>До цели</th></tr>
     </thead>
     <tbody id="sp_rows"></tbody>
   </table>
+  <div class="muted" id="sp_needInfo" style="margin-top:8px"></div>
 </div>
 
 <!-- NitroEV formula/details -->
@@ -259,11 +273,11 @@
 <script>
   /* ====== Мили/Шаблоны ====== */
   const STATUS = {
-    D1:{name:'D1',mult:5.00,b1:{miles:10000,eurFR:25},  b2:{miles:10000,eurFR:25}},
-    D2:{name:'D2',mult:5.25,b1:{miles:25000,eurFR:75},  b2:{miles:25000,eurFR:75}},
-    D3:{name:'D3',mult:5.50,b1:{miles:50000,eurFR:125}, b2:{miles:50000,eurFR:125}},
-    D4:{name:'D4',mult:5.75,b1:{miles:100000,eurFR:250},b2:{miles:100000,eurFR:250}},
-    D5:{name:'D5',mult:6.00,b1:{miles:150000,eurFR:375},b2:{miles:150000,eurFR:375}},
+    D1:{name:'D1',mult:3.00,b1:{miles:10000,eurFR:25},  b2:{miles:10000,eurFR:25}},
+    D2:{name:'D2',mult:3.50,b1:{miles:25000,eurFR:75},  b2:{miles:25000,eurFR:75}},
+    D3:{name:'D3',mult:4.00,b1:{miles:50000,eurFR:125}, b2:{miles:50000,eurFR:125}},
+    D4:{name:'D4',mult:4.50,b1:{miles:100000,eurFR:250},b2:{miles:100000,eurFR:250}},
+    D5:{name:'D5',mult:5.00,b1:{miles:150000,eurFR:375},b2:{miles:150000,eurFR:375}},
     RD1:{name:'RD1',mult:6.00,b1:{miles:200000,eurFR:500},  b2:{miles:100000,eurFR:500}},
     RD2:{name:'RD2',mult:6.25,b1:{miles:350000,eurFR:1000}, b2:{miles:250000,eurFR:1000}},
     RD3:{name:'RD3',mult:6.50,b1:{miles:700000,eurFR:2000}, b2:{miles:500000,eurFR:2000}},
@@ -441,12 +455,24 @@
   nr_renderHistory();
 
   /* ====== Прогресс статуса ====== */
-  const SP_THRESH={D4:430000,D5:1000000,RD1:2000000};
+  const SP_LEVELS=[
+    {name:'D1',miles:0,mult:3.00},
+    {name:'D2',miles:50000,mult:3.50},
+    {name:'D3',miles:330000,mult:4.00},
+    {name:'D4',miles:500000,mult:4.50},
+    {name:'D5',miles:1000000,mult:5.00},
+    {name:'RD1',miles:2000000,mult:6.00},
+    {name:'RD2',miles:3500000,mult:6.25},
+    {name:'RD3',miles:5500000,mult:6.50},
+    {name:'RD4',miles:8000000,mult:6.75},
+    {name:'RD5',miles:11000000,mult:7.00}
+  ];
   const SP_DATA=JSON.parse(localStorage.getItem('sp_data')||'{}');
   const SP_MONTHS=[];
   let SP_OFFSET=0;
   (function(){
     const d=new Date();
+    d.setDate(1);
     d.setMonth(d.getMonth()-11);
     for(let i=0;i<24;i++){ SP_MONTHS.push(d.toISOString().slice(0,7)); d.setMonth(d.getMonth()+1); }
   })();
@@ -470,13 +496,47 @@
       let rolling=0;
       for(let j=Math.max(0,i-11); j<=i; j++){ rolling+=no(SP_DATA[SP_MONTHS[j]]); }
       const total=from+rolling;
-      const status= total>=SP_THRESH.RD1?'RD1': total>=SP_THRESH.D5?'D5': total>=SP_THRESH.D4?'D4': total>=330000?'D3':'';
-      rows+=`<tr><td>${fmtMonth(m)}</td><td><input type="number" data-month="${m}" value="${val}"></td><td class="mono">${fmt(total)}</td><td>${status}</td><td class="mono">${fmt(Math.max(0,SP_THRESH.D4-total))}</td><td class="mono">${fmt(Math.max(0,SP_THRESH.D5-total))}</td><td class="mono">${fmt(Math.max(0,to-total))}</td></tr>`;
+      const {cur,next}=sp_status(total);
+      rows+=`<tr><td>${fmtMonth(m)}</td><td><input type="number" data-month="${m}" value="${val}"></td><td class="mono">${fmt(total)}</td><td>${cur?cur.name:''}</td><td>${next?next.name:'—'}</td><td class="mono">${fmt(Math.max(0,to-total))}</td></tr>`;
     }
     body.innerHTML=rows;
     body.querySelectorAll('input').forEach(inp=>inp.addEventListener('change',sp_update));
     document.getElementById('sp_prev').disabled = SP_OFFSET<=0;
     document.getElementById('sp_next').disabled = SP_OFFSET+12>=SP_MONTHS.length;
+    sp_calcNeed();
+  }
+
+  function sp_status(total){
+    let next = SP_LEVELS.find(l=>total<l.miles);
+    let idx = next ? SP_LEVELS.indexOf(next)-1 : SP_LEVELS.length-1;
+    if(idx<0) idx=0;
+    return {cur:SP_LEVELS[idx], next};
+  }
+
+  function sp_calcNeed(){
+    const from=no(document.getElementById('sp_from').value);
+    const limit=+document.getElementById('sp_limit').value;
+    const months=Math.max(1,no(document.getElementById('sp_months').value));
+    const rakePct=+document.getElementById('rakePct').value;
+    const kconst=+document.getElementById('kconst').value;
+    const now=new Date().toISOString().slice(0,7);
+    const idx=SP_MONTHS.indexOf(now);
+    let rolling=0;
+    for(let i=Math.max(0,idx-11); i<=idx; i++){ rolling+=no(SP_DATA[SP_MONTHS[i]]); }
+    const total=from+rolling;
+    const {cur,next}=sp_status(total);
+    if(!next){
+      document.getElementById('sp_needInfo').textContent='Максимальный статус достигнут.';
+      return;
+    }
+    const needMiles=next.miles-total;
+    const mpg=milesPerGame(limit,rakePct,kconst,cur.mult);
+    const rakePerGame=limit*(rakePct/100);
+    const games=mpg>0?Math.ceil(needMiles/mpg):0;
+    const rake=games*rakePerGame;
+    const gpm=Math.ceil(games/months);
+    document.getElementById('sp_needInfo').textContent=
+      `До статуса ${next.name}: ${fmt(needMiles)} миль = €${fmt(rake,2)} рейка = ${fmt(games)} игр (${fmt(gpm)} игр/мес.)`;
   }
 
   function sp_update(e){
@@ -492,7 +552,7 @@
 
   document.getElementById('sp_prev').addEventListener('click',()=>sp_shift(-1));
   document.getElementById('sp_next').addEventListener('click',()=>sp_shift(1));
-  ['sp_from','sp_to'].forEach(id=>document.getElementById(id).addEventListener('change',sp_render));
+  ['sp_from','sp_to','sp_limit','sp_months','rakePct','kconst'].forEach(id=>document.getElementById(id).addEventListener('change',sp_render));
 
   sp_syncFromNR();
   sp_render();
