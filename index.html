@@ -83,6 +83,9 @@
     <div class="row">
       <label>Лимит в шаблонах
         <select id="limit">
+          <option value="2">€2</option>
+          <option value="5">€5</option>
+          <option value="10">€10</option>
           <option value="25">€25</option>
           <option value="50">€50</option>
           <option value="100" selected>€100</option>
@@ -115,6 +118,9 @@
     <div class="row">
       <label>Лимит
         <select id="ne_limit">
+          <option value="2">€2</option>
+          <option value="5">€5</option>
+          <option value="10">€10</option>
           <option value="25">€25</option>
           <option value="50">€50</option>
           <option value="100" selected>€100</option>
@@ -191,6 +197,17 @@
 </div>
 </div>
 
+<div class="card" id="statusCard">
+  <h3>Прогресс статуса</h3>
+  <div class="muted">Мили за последние 12 месяцев и планы на будущие.</div>
+  <table>
+    <thead>
+      <tr><th>Месяц</th><th>Мили</th><th>Итого за год</th><th>Статус</th><th>До D4</th><th>До D5</th><th>До RD1</th></tr>
+    </thead>
+    <tbody id="sp_rows"></tbody>
+  </table>
+</div>
+
 <!-- NitroEV formula/details -->
 <details id="ne_details">
   <summary>NitroEV: формула и параметры</summary>
@@ -259,13 +276,12 @@
     const esPlus = document.getElementById('esPlus').value==='1';
 
     // Miles/турнир
-    const mp25  = milesPerGame(25,  rakePct, kconst, st.mult);
-    const mp50  = milesPerGame(50,  rakePct, kconst, st.mult);
-    const mp100 = milesPerGame(100, rakePct, kconst, st.mult);
-    document.getElementById('milesRows').innerHTML =
-      `<tr><td>€25</td><td class="mono">${fmt(25*rakePct/100,2)}</td><td class="mono"><b>${fmt(mp25,2)}</b></td></tr>
-       <tr><td>€50</td><td class="mono">${fmt(50*rakePct/100,2)}</td><td class="mono"><b>${fmt(mp50,2)}</b></td></tr>
-       <tr><td>€100</td><td class="mono">${fmt(100*rakePct/100,2)}</td><td class="mono"><b>${fmt(mp100,2)}</b></td></tr>`;
+    const buyins=[2,5,10,25,50,100];
+    const milesRows=buyins.map(B=>{
+      const mpg=milesPerGame(B, rakePct, kconst, st.mult);
+      return `<tr><td>€${B}</td><td class="mono">${fmt(B*rakePct/100,2)}</td><td class="mono"><b>${fmt(mpg,2)}</b></td></tr>`;
+    }).join('');
+    document.getElementById('milesRows').innerHTML = milesRows;
 
     // Шаблонные бонусы
     document.getElementById('bonusNote').textContent =
@@ -410,8 +426,72 @@
   nr_render();
   nr_renderHistory();
 
+  /* ====== Прогресс статуса ====== */
+  const SP_THRESH={D4:430000,D5:930000,RD1:1930000};
+  const SP_DATA=JSON.parse(localStorage.getItem('sp_data')||'{}');
+  const SP_MONTHS=[];
+  (function(){
+    const d=new Date();
+    d.setMonth(d.getMonth()-11);
+    for(let i=0;i<24;i++){ SP_MONTHS.push(d.toISOString().slice(0,7)); d.setMonth(d.getMonth()+1); }
+  })();
+
+  function sp_render(){
+    const body=document.getElementById('sp_rows');
+    let rows="", rolling=0;
+    for(let i=0;i<SP_MONTHS.length;i++){
+      const m=SP_MONTHS[i];
+      const val=no(SP_DATA[m]);
+      rolling+=val;
+      if(i>=12) rolling-=no(SP_DATA[SP_MONTHS[i-12]]);
+      const total=rolling;
+      const status= total>=SP_THRESH.RD1?'RD1': total>=SP_THRESH.D5?'D5': total>=SP_THRESH.D4?'D4': total>=330000?'D3':'';
+      rows+=`<tr><td>${fmtMonth(m)}</td><td><input type="number" data-month="${m}" value="${val}"></td><td class="mono">${fmt(total)}</td><td>${status}</td><td class="mono">${fmt(Math.max(0,SP_THRESH.D4-total))}</td><td class="mono">${fmt(Math.max(0,SP_THRESH.D5-total))}</td><td class="mono">${fmt(Math.max(0,SP_THRESH.RD1-total))}</td></tr>`;
+    }
+    body.innerHTML=rows;
+    body.querySelectorAll('input').forEach(inp=>inp.addEventListener('input',sp_update));
+  }
+
+  function sp_update(e){
+    const m=e.target.dataset.month; SP_DATA[m]=no(e.target.value);
+    localStorage.setItem('sp_data',JSON.stringify(SP_DATA));
+    sp_render();
+  }
+
+  sp_render();
+
   /* ====== Nitro EV (неймспейс ne_*) ====== */
   const NE_PROBS = {
+    2: [
+      {m:1000,  p:100/1e7,  type:"icm"},
+      {m:100,   p:2000/1e7, type:"icm"},
+      {m:50,    p:10000/1e7,type:"icm"},
+      {m:10,    p:150000/1e7,type:"wta"},
+      {m:5,     p:400000/1e7,type:"wta"},
+      {m:4,     p:825000/1e7,type:"wta"},
+      {m:3,     p:2674220/1e7,type:"wta"},
+      {m:2,     p:5938670/1e7,type:"wta"},
+    ],
+    5: [
+      {m:1000,  p:100/1e7,  type:"icm"},
+      {m:100,   p:2000/1e7, type:"icm"},
+      {m:50,    p:10000/1e7,type:"icm"},
+      {m:10,    p:150000/1e7,type:"wta"},
+      {m:5,     p:400000/1e7,type:"wta"},
+      {m:4,     p:825000/1e7,type:"wta"},
+      {m:3,     p:2674220/1e7,type:"wta"},
+      {m:2,     p:5938670/1e7,type:"wta"},
+    ],
+    10: [
+      {m:1000,  p:100/1e7,  type:"icm"},
+      {m:100,   p:2000/1e7, type:"icm"},
+      {m:50,    p:10000/1e7,type:"icm"},
+      {m:10,    p:150000/1e7,type:"wta"},
+      {m:5,     p:400000/1e7,type:"wta"},
+      {m:4,     p:825000/1e7,type:"wta"},
+      {m:3,     p:2674220/1e7,type:"wta"},
+      {m:2,     p:5938670/1e7,type:"wta"},
+    ],
     25: [
       {m:1000,  p:100/1e7,  type:"icm"},
       {m:100,   p:2000/1e7, type:"icm"},
