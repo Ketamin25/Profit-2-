@@ -24,6 +24,9 @@
   .half{width:100%}
   .bold{font-weight:700}
   .scroll{max-height:240px;overflow-y:auto}
+  .tabs{display:flex;gap:8px;margin-bottom:8px}
+  .tabs button{padding:6px 12px;border:1px solid var(--bd);background:var(--card);border-radius:8px;cursor:pointer}
+  .tabs button.active{background:#e5e7eb}
 
   /* Nitro EV */
   .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:14px}
@@ -31,6 +34,7 @@
   .kpi b{display:block;font-size:13px;color:#555;margin-bottom:4px}
   .kpi span{font-size:18px;font-weight:700}
   .gridNitro{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:10px}
+  .link{background:none;border:none;color:#1d4ed8;cursor:pointer;padding:0}
 </style>
 </head>
 <body>
@@ -39,24 +43,16 @@
 <div class="row">
   <label>Статус (для миль/игру)
     <select id="status">
-      <option value="D1">D1 — ×5.00</option>
-      <option value="D2">D2 — ×5.25</option>
-      <option value="D3">D3 — ×5.50</option>
-      <option value="D4">D4 — ×5.75</option>
-      <option value="D5">D5 — ×6.00</option>
-      <option value="RD1">RD1 — ×6.00</option>
-      <option value="RD2">RD2 — ×6.25</option>
-      <option value="RD3">RD3 — ×6.50</option>
-      <option value="RD4">RD4 — ×6.75</option>
-      <option value="RD5" selected>RD5 — ×7.00</option>
-    </select>
-  </label>
-
-  <label>Лимит в шаблонах
-    <select id="limit">
-      <option value="25">€25</option>
-      <option value="50">€50</option>
-      <option value="100" selected>€100</option>
+      <option value="D1">D1 — ×3.00</option>
+      <option value="D2">D2 — ×3.50</option>
+      <option value="D3">D3 — ×4.00</option>
+      <option value="D4">D4 — ×4.50</option>
+      <option value="D5">D5 — ×5.00</option>
+      <option value="RD1">RD1 — ×6.25</option>
+      <option value="RD2">RD2 — ×6.50</option>
+      <option value="RD3">RD3 — ×6.75</option>
+      <option value="RD4">RD4 — ×7.00</option>
+      <option value="RD5" selected>RD5 — ×7.25</option>
     </select>
   </label>
 
@@ -77,16 +73,39 @@
 
 <!-- СЛОТЫ 1–2 -->
 <div class="grid12">
-  <div class="card">
-    <h3>Miles за 1 турнир (по выбранному статусу)</h3>
-    <table>
-      <thead><tr><th>Лимит</th><th>Rake €</th><th>Miles/турнир</th></tr></thead>
-      <tbody id="milesRows"></tbody>
-    </table>
+  <div class="card" id="infoCard">
+    <div class="tabs">
+      <button id="tab_miles" class="active">Miles</button>
+      <button id="tab_status">Status</button>
+    </div>
+    <div id="tabMiles">
+      <table>
+        <thead><tr><th>Лимит</th><th>Rake €</th><th>Miles/турнир</th></tr></thead>
+        <tbody id="milesRows"></tbody>
+      </table>
+    </div>
+    <div id="tabStatus" style="display:none">
+      <table>
+        <thead><tr><th>Статус</th><th>Мили</th></tr></thead>
+        <tbody id="statusRows"></tbody>
+      </table>
+    </div>
   </div>
 
   <div class="card" id="tplCard">
     <h3>Шаблонные бонусы по КАЖДОМУ статусу (игры на выбранном лимите)</h3>
+    <div class="row">
+      <label>Лимит в шаблонах
+        <select id="limit">
+          <option value="2">€2</option>
+          <option value="5">€5</option>
+          <option value="10">€10</option>
+          <option value="25">€25</option>
+          <option value="50">€50</option>
+          <option value="100" selected>€100</option>
+        </select>
+      </label>
+    </div>
     <div class="muted" id="bonusNote"></div>
     <div class="scroll">
       <table>
@@ -113,6 +132,9 @@
     <div class="row">
       <label>Лимит
         <select id="ne_limit">
+          <option value="2">€2</option>
+          <option value="5">€5</option>
+          <option value="10">€10</option>
           <option value="25">€25</option>
           <option value="50">€50</option>
           <option value="100" selected>€100</option>
@@ -127,30 +149,18 @@
       <label>x1k %
         <input id="ne_p1000" type="number" value="100" min="0" max="100" step="0.1" />
       </label>
-      <label>% TOP-джекпота в пуле
-        <input id="ne_ptop" type="number" value="0" min="0" max="100" step="0.1" />
-      </label>
       <label>RakeBack %
         <input id="ne_rb" type="number" value="0" min="0" max="100" step="0.1" />
       </label>
     </div>
 
     <div class="kpis">
-      <div class="kpi"><b>EV/игру</b><span id="ne_evGame">—</span></div>
-      <div class="kpi"><b>PoolEV (только EV)</b><span id="ne_poolEv">—</span></div>
-      <div class="kpi"><b>Rake (∑ B · Rake%)</b><span id="ne_rakeTotal">—</span></div>
-      <div class="kpi"><b>Rakeback (Rake · RB%)</b><span id="ne_rbTotal">—</span></div>
-      <div class="kpi"><b>Суммарный профит = EV + RB</b><span id="ne_sumProfit">—</span></div>
+      <div class="kpi"><b>Profit/игру</b><span id="ne_profitGame">—</span></div>
+      <div class="kpi"><b>PoolEV</b><span id="ne_poolEv">—</span></div>
+      <div class="kpi"><b>Rake</b><span id="ne_rakeTotal">—</span></div>
+      <div class="kpi"><b>RB</b><span id="ne_rbTotal">—</span></div>
+      <div class="kpi"><b>Profit</b><span id="ne_sumProfit">—</span></div>
     </div>
-
-    <details>
-      <summary>Формула и параметры (развернуть)</summary>
-      <div class="muted" id="ne_formula_text"></div>
-      <div class="gridNitro">
-        <div class="card" id="ne_diag_avgs"></div>
-        <div class="card" id="ne_diag_weights"></div>
-      </div>
-    </details>
   </div>
 
   <div class="card half" id="recordCard">
@@ -159,6 +169,9 @@
       <label>Месяц
         <input type="month" id="nr_month">
       </label>
+      <button id="nr_clear_month" type="button">✕</button>
+      <button id="nr_prev" type="button">◀</button>
+      <button id="nr_next" type="button">▶</button>
       <label>Лимит
         <select id="nr_limit">
           <option value="2">€2</option>
@@ -169,6 +182,7 @@
           <option value="100">€100</option>
         </select>
       </label>
+      <button id="nr_clear_limit" type="button">✕</button>
       <label>Турниров
         <input id="nr_games" type="number">
       </label>
@@ -194,8 +208,65 @@
       <tbody id="nr_histRows"></tbody>
       <tfoot id="nr_hist_total"></tfoot>
     </table>
-  </div>
 </div>
+</div>
+
+  <div class="card" id="statusCard">
+  <h3>Прогресс статуса</h3>
+  <div class="muted">Мили за последние 12 месяцев и планы на будущие.</div>
+  <div class="row">
+    <label>От
+      <input id="sp_from" type="number" value="330000" step="1000">
+    </label>
+    <label>До
+      <select id="sp_to">
+        <option value="D1">D1</option>
+        <option value="D2">D2</option>
+        <option value="D3">D3</option>
+        <option value="D4" selected>D4</option>
+        <option value="D5">D5</option>
+        <option value="RD1">RD1</option>
+        <option value="RD2">RD2</option>
+        <option value="RD3">RD3</option>
+        <option value="RD4">RD4</option>
+        <option value="RD5">RD5</option>
+      </select>
+    </label>
+    <label>Лимит
+      <select id="sp_limit">
+        <option value="2">€2</option>
+        <option value="5" selected>€5</option>
+        <option value="10">€10</option>
+        <option value="25">€25</option>
+        <option value="50">€50</option>
+        <option value="100">€100</option>
+      </select>
+    </label>
+    <label>Месяцев
+      <input id="sp_months" type="number" value="12" min="1">
+    </label>
+    <label>Списывается
+      <input id="sp_expire" type="number" value="0">
+    </label>
+  </div>
+  <div class="muted" id="sp_needInfo" style="margin-bottom:8px"></div>
+  <table>
+    <thead>
+      <tr><th>Старт</th><th>Статус</th><th>Цель</th><th>Рейк</th><th>Турниров</th><th>Миль</th></tr>
+    </thead>
+    <tbody id="sp_rows"></tbody>
+  </table>
+  </div>
+
+<!-- NitroEV formula/details -->
+<details id="ne_details">
+  <summary>NitroEV: формула и параметры</summary>
+  <div class="muted" id="ne_formula_text"></div>
+  <div class="gridNitro">
+    <div class="card" id="ne_diag_avgs"></div>
+    <div class="card" id="ne_diag_weights"></div>
+  </div>
+</details>
 
 <!-- Курс обмена — под спойлер -->
 <details>
@@ -228,16 +299,16 @@
 <script>
   /* ====== Мили/Шаблоны ====== */
   const STATUS = {
-    D1:{name:'D1',mult:5.00,b1:{miles:10000,eurFR:100}, b2:{miles:5000,eurFR:50}},
-    D2:{name:'D2',mult:5.25,b1:{miles:25000,eurFR:250}, b2:{miles:10000,eurFR:100}},
-    D3:{name:'D3',mult:5.50,b1:{miles:50000,eurFR:500}, b2:{miles:25000,eurFR:250}},
-    D4:{name:'D4',mult:5.75,b1:{miles:100000,eurFR:1000}, b2:{miles:50000,eurFR:500}},
-    D5:{name:'D5',mult:6.00,b1:{miles:150000,eurFR:1500}, b2:{miles:50000,eurFR:500}},
-    RD1:{name:'RD1',mult:6.00,b1:{miles:200000,eurFR:500},  b2:{miles:100000,eurFR:500}},
-    RD2:{name:'RD2',mult:6.25,b1:{miles:350000,eurFR:1000}, b2:{miles:250000,eurFR:1000}},
-    RD3:{name:'RD3',mult:6.50,b1:{miles:700000,eurFR:2000}, b2:{miles:500000,eurFR:2000}},
-    RD4:{name:'RD4',mult:6.75,b1:{miles:1300000,eurFR:4000},b2:{miles:1000000,eurFR:4000}},
-    RD5:{name:'RD5',mult:7.00,b1:{miles:2500000,eurFR:8000},b2:{miles:1500000,eurFR:8000}}
+    D1:{name:'D1',mult:3.00,b1:{miles:10000,eurFR:25},  b2:{miles:10000,eurFR:25}},
+    D2:{name:'D2',mult:3.50,b1:{miles:25000,eurFR:75},  b2:{miles:25000,eurFR:75}},
+    D3:{name:'D3',mult:4.00,b1:{miles:50000,eurFR:125}, b2:{miles:50000,eurFR:125}},
+    D4:{name:'D4',mult:4.50,b1:{miles:100000,eurFR:250},b2:{miles:100000,eurFR:250}},
+    D5:{name:'D5',mult:5.00,b1:{miles:150000,eurFR:375},b2:{miles:150000,eurFR:375}},
+    RD1:{name:'RD1',mult:6.25,b1:{miles:200000,eurFR:625},  b2:{miles:250000,eurFR:625}},
+    RD2:{name:'RD2',mult:6.50,b1:{miles:700000,eurFR:2500}, b2:{miles:1000000,eurFR:2500}},
+    RD3:{name:'RD3',mult:6.75,b1:{miles:1300000,eurFR:7000}, b2:{miles:2500000,eurFR:7000}},
+    RD4:{name:'RD4',mult:7.00,b1:{miles:2500000,eurFR:15000},b2:{miles:5000000,eurFR:10000}},
+    RD5:{name:'RD5',mult:7.25,b1:{miles:4000000,eurFR:25000},b2:{miles:10000000,eurFR:10000}}
   };
   const fmt=(n,d=0)=>Number(n??0).toLocaleString('ru-RU',{minimumFractionDigits:d,maximumFractionDigits:d});
   const no = v => (v===''||v===null||isNaN(Number(v)))?0:Number(v);
@@ -255,13 +326,12 @@
     const esPlus = document.getElementById('esPlus').value==='1';
 
     // Miles/турнир
-    const mp25  = milesPerGame(25,  rakePct, kconst, st.mult);
-    const mp50  = milesPerGame(50,  rakePct, kconst, st.mult);
-    const mp100 = milesPerGame(100, rakePct, kconst, st.mult);
-    document.getElementById('milesRows').innerHTML =
-      `<tr><td>€25</td><td class="mono">${fmt(25*rakePct/100,2)}</td><td class="mono"><b>${fmt(mp25,2)}</b></td></tr>
-       <tr><td>€50</td><td class="mono">${fmt(50*rakePct/100,2)}</td><td class="mono"><b>${fmt(mp50,2)}</b></td></tr>
-       <tr><td>€100</td><td class="mono">${fmt(100*rakePct/100,2)}</td><td class="mono"><b>${fmt(mp100,2)}</b></td></tr>`;
+    const buyins=[2,5,10,25,50,100];
+    const milesRows=buyins.map(B=>{
+      const mpg=milesPerGame(B, rakePct, kconst, st.mult);
+      return `<tr><td>€${B}</td><td class="mono">${fmt(B*rakePct/100,2)}</td><td class="mono"><b>${fmt(mpg,2)}</b></td></tr>`;
+    }).join('');
+    document.getElementById('milesRows').innerHTML = milesRows;
 
     // Шаблонные бонусы
     document.getElementById('bonusNote').textContent =
@@ -284,6 +354,14 @@
     }
     document.getElementById('tplRows').innerHTML = tpl.join('');
 
+    // Таблица статусов и порогов
+    const statusRows = SP_LEVELS.map((l,i)=>{
+      const next = SP_LEVELS[i+1];
+      const range = next ? `${fmt(l.miles)}–${fmt(next.miles-1)}` : `${fmt(l.miles)}+`;
+      return `<tr><td>${l.name}</td><td class="mono">${range}</td></tr>`;
+    }).join('');
+    document.getElementById('statusRows').innerHTML = statusRows;
+
     // курс (в спойлере)
     const eurX=no(document.getElementById('eurX')?.value);
     const milX=no(document.getElementById('milesX')?.value);
@@ -299,11 +377,34 @@
   ['status','limit','rakePct','esPlus','kconst','eurX','milesX']
     .forEach(id=>{ const el=document.getElementById(id); if(el){ el.addEventListener('input',recalc); el.addEventListener('change',recalc);} });
 
-  /* ====== Nitro Record ====== */
+  function switchTab(tab){
+    const milesBtn=document.getElementById('tab_miles');
+    const statusBtn=document.getElementById('tab_status');
+    const milesDiv=document.getElementById('tabMiles');
+    const statusDiv=document.getElementById('tabStatus');
+    if(tab==='miles'){
+      milesBtn.classList.add('active');
+      statusBtn.classList.remove('active');
+      milesDiv.style.display='block';
+      statusDiv.style.display='none';
+    }else{
+      milesBtn.classList.remove('active');
+      statusBtn.classList.add('active');
+      milesDiv.style.display='none';
+      statusDiv.style.display='block';
+    }
+  }
+  document.getElementById('tab_miles').addEventListener('click',()=>switchTab('miles'));
+  document.getElementById('tab_status').addEventListener('click',()=>switchTab('status'));
+
+/* ====== Nitro Record ====== */
+  const MONTH_NAMES=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
   let NR_DATA = JSON.parse(localStorage.getItem('nr_data')||'{}');
   let NR_MONTH = new Date().toISOString().slice(0,7);
   let NR_CURRENT = NR_DATA[NR_MONTH] || {};
   document.getElementById('nr_month').value = NR_MONTH;
+
+  function fmtMonth(m){ const [y,mo]=m.split('-'); return MONTH_NAMES[+mo-1]+" "+y.slice(2); }
 
   function nr_render(){
     const limits=[2,5,10,25,50,100];
@@ -342,10 +443,37 @@
     NR_DATA[NR_MONTH]=NR_CURRENT;
     localStorage.setItem('nr_data',JSON.stringify(NR_DATA));
     nr_renderHistory();
+    sp_syncFromNR();
+    sp_render();
+  }
+
+  function nr_clearLimit(){
+    const limit=document.getElementById('nr_limit').value;
+    delete NR_CURRENT[limit];
+    nr_render();
+  }
+
+  function nr_clearMonth(){
+    delete NR_DATA[NR_MONTH];
+    NR_CURRENT={};
+    localStorage.setItem('nr_data',JSON.stringify(NR_DATA));
+    nr_render();
+    nr_renderHistory();
+    sp_syncFromNR();
+    sp_render();
   }
 
   function nr_changeMonth(){
     NR_MONTH=document.getElementById('nr_month').value;
+    NR_CURRENT=NR_DATA[NR_MONTH]||{};
+    nr_render();
+  }
+
+  function nr_shiftMonth(delta){
+    const d=new Date(NR_MONTH+'-01');
+    d.setMonth(d.getMonth()+delta);
+    NR_MONTH=d.toISOString().slice(0,7);
+    document.getElementById('nr_month').value=NR_MONTH;
     NR_CURRENT=NR_DATA[NR_MONTH]||{};
     nr_render();
   }
@@ -358,22 +486,139 @@
       let g=0,mi=0,pr=0; const obj=NR_DATA[m];
       Object.values(obj).forEach(r=>{g+=r.games;mi+=r.miles;pr+=r.profit;});
       sg+=g; sm+=mi; sp+=pr;
-      rows+=`<tr><td>${m}</td><td class="mono">${fmt(g)}</td><td class="mono">${fmt(mi)}</td><td class="mono">${fmt(pr,2)}</td></tr>`;
+      rows+=`<tr><td><button type="button" data-month="${m}" class="link">${fmtMonth(m)}</button></td><td class="mono">${fmt(g)}</td><td class="mono">${fmt(mi)}</td><td class="mono">${fmt(pr,2)}</td></tr>`;
     });
     body.innerHTML=rows;
     foot.innerHTML=`<tr class="bold"><td>Итого</td><td class="mono">${fmt(sg)}</td><td class="mono">${fmt(sm)}</td><td class="mono">${fmt(sp,2)}</td></tr>`;
+    body.querySelectorAll('button').forEach(btn=>btn.addEventListener('click',()=>{
+      NR_MONTH=btn.dataset.month;
+      document.getElementById('nr_month').value=NR_MONTH;
+      NR_CURRENT=NR_DATA[NR_MONTH]||{};
+      nr_render();
+    }));
   }
 
   document.getElementById('nr_add').addEventListener('click',nr_add);
   document.getElementById('nr_save').addEventListener('click',nr_save);
   document.getElementById('nr_month').addEventListener('change',nr_changeMonth);
+  document.getElementById('nr_prev').addEventListener('click',()=>nr_shiftMonth(-1));
+  document.getElementById('nr_next').addEventListener('click',()=>nr_shiftMonth(1));
+  document.getElementById('nr_clear_limit').addEventListener('click',nr_clearLimit);
+  document.getElementById('nr_clear_month').addEventListener('click',nr_clearMonth);
   nr_render();
   nr_renderHistory();
 
+  /* ====== Прогресс статуса ====== */
+  const SP_LEVELS=[
+    {name:'D1',miles:50000,mult:3.00},
+    {name:'D2',miles:100000,mult:3.50},
+    {name:'D3',miles:250000,mult:4.00},
+    {name:'D4',miles:500000,mult:4.50},
+    {name:'D5',miles:1000000,mult:5.00},
+    {name:'RD1',miles:2000000,mult:6.25},
+    {name:'RD2',miles:4000000,mult:6.50},
+    {name:'RD3',miles:7000000,mult:6.75},
+    {name:'RD4',miles:10000000,mult:7.00},
+    {name:'RD5',miles:15000000,mult:7.25}
+  ];
+  const SP_DATA=JSON.parse(localStorage.getItem('sp_data')||'{}');
+  const SP_MONTHS=[];
+  (function(){
+    const d=new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth()-11);
+    for(let i=0;i<24;i++){ SP_MONTHS.push(d.toISOString().slice(0,7)); d.setMonth(d.getMonth()+1); }
+  })();
+
+  function sp_syncFromNR(){
+    Object.keys(NR_DATA).forEach(m=>{
+      let mi=0; Object.values(NR_DATA[m]).forEach(r=>mi+=r.miles);
+      SP_DATA[m]=mi;
+    });
+    localStorage.setItem('sp_data',JSON.stringify(SP_DATA));
+  }
+
+  function sp_status(total){
+    let next = SP_LEVELS.find(l=>total<l.miles);
+    let idx = next ? SP_LEVELS.indexOf(next)-1 : SP_LEVELS.length-1;
+    if(idx<0) idx=0;
+    return {cur:SP_LEVELS[idx], next};
+  }
+
+  function sp_calc(){
+    const from=no(document.getElementById('sp_from').value);
+    const targetName=document.getElementById('sp_to').value;
+    const limit=+document.getElementById('sp_limit').value;
+    const months=Math.max(1,no(document.getElementById('sp_months').value));
+    const rakePct=+document.getElementById('rakePct').value;
+    const kconst=+document.getElementById('kconst').value;
+    const multSel=STATUS[document.getElementById('status').value].mult;
+    const nowStr=new Date().toISOString().slice(0,7);
+    const idx=SP_MONTHS.indexOf(nowStr);
+    let rolling=0;
+    for(let i=Math.max(0,idx-11); i<=idx; i++){ rolling+=no(SP_DATA[SP_MONTHS[i]]); }
+    const total=from+rolling;
+    const {cur}=sp_status(total);
+    const target = SP_LEVELS.find(l=>l.name===targetName) || SP_LEVELS[SP_LEVELS.length-1];
+    const expire=no(document.getElementById('sp_expire').value);
+    const needMiles=Math.max(0,target.miles-total+expire);
+    const mpg=milesPerGame(limit,rakePct,kconst,multSel);
+    const rakePerGame=limit*(rakePct/100);
+    const games=mpg>0?Math.ceil(needMiles/mpg):0;
+    const rake=games*rakePerGame;
+    return {start:from,cur:cur.name,target:target.name,expire,needMiles,games,rake,months};
+  }
+
+  function sp_render(){
+    const body=document.getElementById('sp_rows');
+    const res=sp_calc();
+    body.innerHTML=`<tr><td class="mono">${fmt(res.start)}</td><td>${res.cur}</td><td>${res.target}</td><td class="mono">€${fmt(res.rake,2)}</td><td class="mono">${fmt(res.games)}</td><td class="mono">${fmt(res.needMiles)}</td></tr>`;
+    if(res.needMiles<=0){
+      document.getElementById('sp_needInfo').textContent=`Цель ${res.target} достигнута.`;
+    }else{
+      const gpm=Math.ceil(res.games/res.months);
+      document.getElementById('sp_needInfo').textContent=`До статуса ${res.target}: ${fmt(res.needMiles)} миль = €${fmt(res.rake,2)} рейка = ${fmt(res.games)} игр (${fmt(gpm)} игр/мес.)`;
+    }
+  }
+
+  ['sp_from','sp_to','sp_limit','sp_months','sp_expire','rakePct','kconst'].forEach(id=>document.getElementById(id).addEventListener('change',sp_render));
+
+  sp_syncFromNR();
+  sp_render();
+
   /* ====== Nitro EV (неймспейс ne_*) ====== */
   const NE_PROBS = {
+    2: [
+      {m:1000,  p:100/1e7,  type:"icm"},
+      {m:100,   p:2000/1e7, type:"icm"},
+      {m:50,    p:10000/1e7,type:"icm"},
+      {m:10,    p:150000/1e7,type:"wta"},
+      {m:5,     p:400000/1e7,type:"wta"},
+      {m:4,     p:825000/1e7,type:"wta"},
+      {m:3,     p:2674220/1e7,type:"wta"},
+      {m:2,     p:5938670/1e7,type:"wta"},
+    ],
+    5: [
+      {m:1000,  p:100/1e7,  type:"icm"},
+      {m:100,   p:2000/1e7, type:"icm"},
+      {m:50,    p:10000/1e7,type:"icm"},
+      {m:10,    p:150000/1e7,type:"wta"},
+      {m:5,     p:400000/1e7,type:"wta"},
+      {m:4,     p:825000/1e7,type:"wta"},
+      {m:3,     p:2674220/1e7,type:"wta"},
+      {m:2,     p:5938670/1e7,type:"wta"},
+    ],
+    10: [
+      {m:1000,  p:100/1e7,  type:"icm"},
+      {m:100,   p:2000/1e7, type:"icm"},
+      {m:50,    p:10000/1e7,type:"icm"},
+      {m:10,    p:150000/1e7,type:"wta"},
+      {m:5,     p:400000/1e7,type:"wta"},
+      {m:4,     p:825000/1e7,type:"wta"},
+      {m:3,     p:2674220/1e7,type:"wta"},
+      {m:2,     p:5938670/1e7,type:"wta"},
+    ],
     25: [
-      {m:40000, p: 10/1e7,  type:"icm"},
       {m:1000,  p:100/1e7,  type:"icm"},
       {m:100,   p:2000/1e7, type:"icm"},
       {m:50,    p:10000/1e7,type:"icm"},
@@ -384,7 +629,6 @@
       {m:2,     p:5938670/1e7,type:"wta"},
     ],
     50: [
-      {m:20000, p: 20/1e7,  type:"icm"},
       {m:1000,  p:100/1e7,  type:"icm"},
       {m:100,   p:2000/1e7, type:"icm"},
       {m:50,    p:10000/1e7,type:"icm"},
@@ -395,7 +639,6 @@
       {m:2,     p:5938640/1e7,type:"wta"},
     ],
     100: [
-      {m:10000, p: 4/1e6,   type:"icm"},
       {m:1000,  p:20/1e6,   type:"icm"},
       {m:100,   p:200/1e6,  type:"icm"},
       {m:50,    p:1000/1e6, type:"icm"},
@@ -408,7 +651,6 @@
   };
 
   function ne_payBI(m, type){ return (type==='icm') ? [0.8*m,0.12*m,0.08*m] : [m,0,0]; }
-  function ne_topIndex(){ return 0; }
   function ne_euro(n){ return n.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
   function calculateNitro(){
@@ -416,18 +658,16 @@
     const CE   = +document.getElementById('ne_ce').value;
     const N    = +document.getElementById('ne_N').value;
     const p100 = Math.max(0, Math.min(100, +document.getElementById('ne_p1000').value));
-    const pTop = Math.max(0, Math.min(100, +document.getElementById('ne_ptop').value));
     const rb   = Math.max(0, Math.min(100, +document.getElementById('ne_rb').value));
     const rakePct = +document.getElementById('rakePct').value / 100;
     const S = 300;
 
     const base = NE_PROBS[B].map(r=>({...r}));
     for(const r of base){ if(r.m===1000) r.p = r.p * (p100/100); }
-    base[ne_topIndex()].p = base[ne_topIndex()].p * (pTop/100);
 
     const sumP = base.reduce((s,r)=>s+r.p,0);
     if(sumP<=0){
-      document.getElementById('ne_evGame').textContent='—';
+      document.getElementById('ne_profitGame').textContent='—';
       document.getElementById('ne_poolEv').textContent='—';
       document.getElementById('ne_rakeTotal').textContent='—';
       document.getElementById('ne_rbTotal').textContent='—';
@@ -458,8 +698,9 @@
     const rakeTotal   = rakePerGame * N;
     const rbTotal     = rakeTotal * (rb/100);
     const sumProfit   = PoolEV + rbTotal;
+    const profitGame  = N>0 ? sumProfit/N : 0;
 
-    document.getElementById('ne_evGame').textContent    = `${ne_euro(EV_game)} €`;
+    document.getElementById('ne_profitGame').textContent= `${ne_euro(profitGame)} €`;
     document.getElementById('ne_poolEv').textContent    = `${ne_euro(PoolEV)} €`;
     document.getElementById('ne_rakeTotal').textContent = `${ne_euro(rakeTotal)} €`;
     document.getElementById('ne_rbTotal').textContent   = `${ne_euro(rbTotal)} €`;
@@ -470,9 +711,9 @@
       `Деньги: EV€/игру = EV_BI·B, PoolEV = N·EV€/игру. <br>`+
       `Rake считается отдельно: <b>rake_per_game = B·${(rakePct*100).toFixed(0)}%</b>, `+
       `<b>Rake_total = rake_per_game·N</b>, `+
-      `<b>Rakeback_total = Rake_total·(RB%)</b>. Итог: <b>Суммарный профит = PoolEV + Rakeback_total</b>.<br>`+
+      `<b>Rakeback_total = Rake_total·(RB%)</b>. Итог: <b>Profit = PoolEV + Rakeback_total</b>, Profit/игру = Profit/N.<br>`+
       `Текущие: Win%=${(Win*100).toFixed(2)}%, Coef(2/3)=${(W23*100).toFixed(2)}%, B=${B}€, CE=${CE}, `+
-      `x1000=${p100.toFixed(2)}%, TOP=${pTop.toFixed(2)}%, RB%=${rb.toFixed(1)}%.`;
+      `x1000=${p100.toFixed(2)}%, RB%=${rb.toFixed(1)}%.`;
 
     document.getElementById('ne_diag_avgs').innerHTML =
       `<b>Средние выплаты по пулу (в BI)</b><br>
@@ -485,7 +726,7 @@
   }
 
   // Слушатели для Nitro и общих контролов
-  ['ne_ce','ne_N','ne_p1000','ne_ptop','ne_rb'].forEach(id=>{
+  ['ne_ce','ne_N','ne_p1000','ne_rb'].forEach(id=>{
     const el=document.getElementById(id);
     el.addEventListener('input',calculateNitro);
     el.addEventListener('change',calculateNitro);
