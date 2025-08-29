@@ -24,6 +24,9 @@
   .half{width:100%}
   .bold{font-weight:700}
   .scroll{max-height:240px;overflow-y:auto}
+  .tabs{display:flex;gap:8px;margin-bottom:8px}
+  .tabs button{padding:6px 12px;border:1px solid var(--bd);background:var(--card);border-radius:8px;cursor:pointer}
+  .tabs button.active{background:#e5e7eb}
 
   /* Nitro EV */
   .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:14px}
@@ -70,12 +73,23 @@
 
 <!-- СЛОТЫ 1–2 -->
 <div class="grid12">
-  <div class="card">
-    <h3>Miles за 1 турнир (по выбранному статусу)</h3>
-    <table>
-      <thead><tr><th>Лимит</th><th>Rake €</th><th>Miles/турнир</th></tr></thead>
-      <tbody id="milesRows"></tbody>
-    </table>
+  <div class="card" id="infoCard">
+    <div class="tabs">
+      <button id="tab_miles" class="active">Miles</button>
+      <button id="tab_status">Status</button>
+    </div>
+    <div id="tabMiles">
+      <table>
+        <thead><tr><th>Лимит</th><th>Rake €</th><th>Miles/турнир</th></tr></thead>
+        <tbody id="milesRows"></tbody>
+      </table>
+    </div>
+    <div id="tabStatus" style="display:none">
+      <table>
+        <thead><tr><th>Статус</th><th>Мили</th></tr></thead>
+        <tbody id="statusRows"></tbody>
+      </table>
+    </div>
   </div>
 
   <div class="card" id="tplCard">
@@ -197,17 +211,12 @@
 </div>
 </div>
 
-<div class="card" id="statusCard">
+  <div class="card" id="statusCard">
   <h3>Прогресс статуса</h3>
   <div class="muted">Мили за последние 12 месяцев и планы на будущие.</div>
   <div class="row">
-    <button id="sp_prev" type="button">◀</button>
-    <button id="sp_next" type="button">▶</button>
     <label>От
       <input id="sp_from" type="number" value="330000" step="1000">
-    </label>
-    <label>До
-      <input id="sp_to" type="number" value="2000000" step="1000">
     </label>
     <label>Лимит
       <select id="sp_limit">
@@ -229,11 +238,11 @@
   <div class="muted" id="sp_needInfo" style="margin-bottom:8px"></div>
   <table>
     <thead>
-      <tr><th>Статус</th><th>Следующий</th><th>До цели</th><th>Лимит</th></tr>
+      <tr><th>Старт</th><th>Статус</th><th>Следующий</th><th>Рейк</th><th>Турниров</th><th>Миль</th></tr>
     </thead>
     <tbody id="sp_rows"></tbody>
   </table>
-</div>
+  </div>
 
 <!-- NitroEV formula/details -->
 <details id="ne_details">
@@ -331,6 +340,14 @@
     }
     document.getElementById('tplRows').innerHTML = tpl.join('');
 
+    // Таблица статусов и порогов
+    const statusRows = SP_LEVELS.map((l,i)=>{
+      const next = SP_LEVELS[i+1];
+      const range = next ? `${fmt(l.miles)}–${fmt(next.miles-1)}` : `${fmt(l.miles)}+`;
+      return `<tr><td>${l.name}</td><td class="mono">${range}</td></tr>`;
+    }).join('');
+    document.getElementById('statusRows').innerHTML = statusRows;
+
     // курс (в спойлере)
     const eurX=no(document.getElementById('eurX')?.value);
     const milX=no(document.getElementById('milesX')?.value);
@@ -345,6 +362,26 @@
 
   ['status','limit','rakePct','esPlus','kconst','eurX','milesX']
     .forEach(id=>{ const el=document.getElementById(id); if(el){ el.addEventListener('input',recalc); el.addEventListener('change',recalc);} });
+
+  function switchTab(tab){
+    const milesBtn=document.getElementById('tab_miles');
+    const statusBtn=document.getElementById('tab_status');
+    const milesDiv=document.getElementById('tabMiles');
+    const statusDiv=document.getElementById('tabStatus');
+    if(tab==='miles'){
+      milesBtn.classList.add('active');
+      statusBtn.classList.remove('active');
+      milesDiv.style.display='block';
+      statusDiv.style.display='none';
+    }else{
+      milesBtn.classList.remove('active');
+      statusBtn.classList.add('active');
+      milesDiv.style.display='none';
+      statusDiv.style.display='block';
+    }
+  }
+  document.getElementById('tab_miles').addEventListener('click',()=>switchTab('miles'));
+  document.getElementById('tab_status').addEventListener('click',()=>switchTab('status'));
 
 /* ====== Nitro Record ====== */
   const MONTH_NAMES=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
@@ -472,7 +509,6 @@
   ];
   const SP_DATA=JSON.parse(localStorage.getItem('sp_data')||'{}');
   const SP_MONTHS=[];
-  let SP_OFFSET=0;
   (function(){
     const d=new Date();
     d.setDate(1);
@@ -488,33 +524,6 @@
     localStorage.setItem('sp_data',JSON.stringify(SP_DATA));
   }
 
-  function sp_render(){
-    const body=document.getElementById('sp_rows');
-    const from=no(document.getElementById('sp_from').value);
-    const to=no(document.getElementById('sp_to').value);
-    const limit=+document.getElementById('sp_limit').value;
-    const rakePct=+document.getElementById('rakePct').value;
-    const kconst=+document.getElementById('kconst').value;
-    const multSel=STATUS[document.getElementById('status').value].mult;
-    const mpg=milesPerGame(limit,rakePct,kconst,multSel);
-    let rows="";
-    for(let i=SP_OFFSET;i<Math.min(SP_OFFSET+12,SP_MONTHS.length);i++){
-      const m=SP_MONTHS[i];
-      const val=no(SP_DATA[m]);
-      let rolling=0;
-      for(let j=Math.max(0,i-11); j<=i; j++){ rolling+=no(SP_DATA[SP_MONTHS[j]]); }
-      const total=from+rolling;
-      const {cur,next}=sp_status(total);
-      const need=Math.max(0,to-total);
-      const games=mpg>0?Math.ceil(need/mpg):0;
-      rows+=`<tr title="${fmtMonth(m)}"><td>${cur?cur.name:''}</td><td>${next?next.name:'—'}</td><td class="mono">${fmt(need)}</td><td class="mono">${fmt(games)}</td></tr>`;
-    }
-    body.innerHTML=rows;
-    document.getElementById('sp_prev').disabled = SP_OFFSET<=0;
-    document.getElementById('sp_next').disabled = SP_OFFSET+12>=SP_MONTHS.length;
-    sp_calcNeed();
-  }
-
   function sp_status(total){
     let next = SP_LEVELS.find(l=>total<l.miles);
     let idx = next ? SP_LEVELS.indexOf(next)-1 : SP_LEVELS.length-1;
@@ -522,7 +531,7 @@
     return {cur:SP_LEVELS[idx], next};
   }
 
-  function sp_calcNeed(){
+  function sp_calc(){
     const from=no(document.getElementById('sp_from').value);
     const limit=+document.getElementById('sp_limit').value;
     const months=Math.max(1,no(document.getElementById('sp_months').value));
@@ -536,9 +545,8 @@
     const total=from+rolling;
     const {cur,next}=sp_status(total);
     if(!next){
-      document.getElementById('sp_expire').value = '0';
-      document.getElementById('sp_needInfo').textContent='Максимальный статус достигнут.';
-      return;
+      document.getElementById('sp_expire').value='0';
+      return {start:from,cur:cur.name,next:null,expire:0,needMiles:0,games:0,rake:0,months};
     }
     let expire=0;
     for(let t=1;t<=months;t++){
@@ -551,19 +559,23 @@
     const rakePerGame=limit*(rakePct/100);
     const games=mpg>0?Math.ceil(needMiles/mpg):0;
     const rake=games*rakePerGame;
-    const gpm=Math.ceil(games/months);
-    document.getElementById('sp_needInfo').textContent=
-      `До статуса ${next.name}: ${fmt(needMiles)} миль = €${fmt(rake,2)} рейка = ${fmt(games)} игр (${fmt(gpm)} игр/мес.)`;
+    return {start:from,cur:cur.name,next:next.name,expire,needMiles,games,rake,months};
   }
 
-  function sp_shift(delta){
-    SP_OFFSET=Math.max(0,Math.min(SP_MONTHS.length-12,SP_OFFSET+delta));
-    sp_render();
+  function sp_render(){
+    const body=document.getElementById('sp_rows');
+    const res=sp_calc();
+    if(!res.next){
+      body.innerHTML=`<tr><td class="mono">${fmt(res.start)}</td><td>${res.cur}</td><td>—</td><td class="mono">0</td><td class="mono">0</td><td class="mono">0</td></tr>`;
+      document.getElementById('sp_needInfo').textContent='Максимальный статус достигнут.';
+      return;
+    }
+    body.innerHTML=`<tr><td class="mono">${fmt(res.start)}</td><td>${res.cur}</td><td>${res.next}</td><td class="mono">€${fmt(res.rake,2)}</td><td class="mono">${fmt(res.games)}</td><td class="mono">${fmt(res.needMiles)}</td></tr>`;
+    const gpm=Math.ceil(res.games/res.months);
+    document.getElementById('sp_needInfo').textContent=`До статуса ${res.next}: ${fmt(res.needMiles)} миль = €${fmt(res.rake,2)} рейка = ${fmt(res.games)} игр (${fmt(gpm)} игр/мес.)`;
   }
 
-  document.getElementById('sp_prev').addEventListener('click',()=>sp_shift(-1));
-  document.getElementById('sp_next').addEventListener('click',()=>sp_shift(1));
-  ['sp_from','sp_to','sp_limit','sp_months','rakePct','kconst'].forEach(id=>document.getElementById(id).addEventListener('change',sp_render));
+  ['sp_from','sp_limit','sp_months','rakePct','kconst'].forEach(id=>document.getElementById(id).addEventListener('change',sp_render));
 
   sp_syncFromNR();
   sp_render();
